@@ -1,0 +1,2 @@
+# autoshell
+Pythonic subprocess library
