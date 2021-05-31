@@ -1,9 +1,10 @@
 import logging
+import os
 import sys
 from pathlib import Path
 from subprocess import PIPE, Popen
 from types import ModuleType
-from typing import Iterable
+from typing import Iterable, Union
 
 log = logging.getLogger(__name__)
 
@@ -80,45 +81,29 @@ def _listify(value):
     return value if _nonstriterable(value) else [value]
 
 
-def _convert_kwargs(kwargs):
-    converted_args = []
-    converted_kwargs = {}
-    for k, vs in kwargs.items():
-        if k.startswith('_'):
-            converted_kwargs[k[1:]] = vs  # pass arg (- underscore) through to 'run'
-            continue
-
-        key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
-        for v in _listify(vs):
-            if v is True:
-                converted_args.append(key)
-            else:
-                converted_args.extend([key, str(v)])
-
-    return converted_args, converted_kwargs
-
-
 class Command:
     _default_kwargs = {'stdout': PIPE, 'stderr': PIPE, 'text': True}
     _command: list[str]
-    def __init__(self, *args, _env={}, **kwargs):
-        self._command = [*args]
+    _kwargs: dict[str, Union[str,Iterable]]
+    _env: dict[str, str]
+    def __init__(self, name, *args, _env={}, **kwargs):
+        self._command = [name, *args]
         self._kwargs = self._default_kwargs | kwargs
-        # todo: environment variables need to be treated specially:
+        # environment variables need to be treated specially:
         # - they need to be merged when you refine commands
-        # - they should automatically inherit from os.envinon
-        self._env = {}
+        # - they should automatically inherit from os.environ when called
+        self._env = {} | _env
 
     def __call__(self, *args, **kwargs):
-        converted_args, converted_kwargs = _convert_kwargs(kwargs)
+        converted_args, converted_kwargs = self._convert_kwargs(kwargs)
         cmd = self._command + [*args] + converted_args
         kwargs = self._kwargs | converted_kwargs
-        log.warning(f"Executing {cmd} with arguments {kwargs}")
+        log.warning(f"Executing: {cmd}")
         result = Popen(cmd, **kwargs)
         return Result(self, result)
 
     def __getitem__(self, *args):
-        return Command(*(self._command + [*args]), **self._kwargs)
+        return Command(*(self._command + [*args]), _env=self._env, **self._kwargs)
 
     __getattr__ = __getitem__
 
@@ -130,6 +115,27 @@ class Command:
 
     def __or__(self, other):
         return self() | other
+
+    def _convert_kwargs(self, kwargs):
+        converted_args = []
+        converted_kwargs = {}
+        for k, vs in kwargs.items():
+            if k.startswith('_'):
+                converted_kwargs[k[1:]] = vs  # pass arg (- underscore) through to 'run'
+                continue
+
+            key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
+            for v in _listify(vs):
+                if v is True:
+                    converted_args.append(key)
+                else:
+                    converted_args.extend([key, str(v)])
+
+        env = converted_kwargs.get('env', {})
+        if self._env or env:
+            converted_kwargs['env'] = os.environ | self._env | env
+
+        return converted_args, converted_kwargs
 
 
 class _AushModule(ModuleType):
