@@ -139,6 +139,7 @@ class Command:
 
 
 class _AushModule(ModuleType):
+    __file__ = __file__
     def __getitem__(self, name):
         return Command(name)
 
