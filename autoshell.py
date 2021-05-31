@@ -10,33 +10,12 @@
 # with a non-zero error code
 
 import logging
+import sys
 from subprocess import PIPE, Popen
+from types import ModuleType
+from typing import Iterable
 
 log = logging.getLogger(__name__)
-
-
-class Command:
-    _default_kwargs = {'stdout': PIPE, 'stderr': PIPE, 'text': True}
-    _command: list[str]
-    def __init__(self, *args, **kwargs):
-        self._command = [*args]
-        self._kwargs = self._default_kwargs | kwargs
-
-    def __call__(self, *args, **kwargs):
-        # interpreting of types can be done, like if you pass an un-called
-        # Command instead of a str you call it, but for now take strs
-        if args or kwargs:
-            return Command(*(self._command + [*args]), **(self._kwargs | kwargs))
-        else:
-            log.warning(f"Executing: {self._command} with arguments {self._kwargs}")
-            result = Popen(self._command, **self._kwargs)
-            return Result(result)
-
-    def __getattr__(self, name):
-        return Command(*(self._command + [name]), **self._kwargs)
-
-    def __str__(self):
-        return str(self._command)
 
 
 class Result:
@@ -73,6 +52,65 @@ class Result:
         stdin = {'input': self.stdout} if self._waited else {'stdin': self._process.stdout}
         return Command(*other._command, **(other._kwargs | stdin))
 
+
+def _nonstriterable(value):
+    return isinstance(value, Iterable) and not isinstance(value, str)
+
+
+def _listify(value):
+    return value if _nonstriterable(value) else [value]
+
+
+def convert_kwargs(kwargs):
+    converted_kwargs = []
+    for k, vs in kwargs.items():
+        if k.startswith('_'):
+            # todo: args that start with underscore will be special
+            # but anything not understood by autoshell will be passed along to
+            # subprocess.run with the underscore removed
+            continue
+
+        key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
+        for v in _listify(vs):
+            if v is True:
+                converted_kwargs.append(key)
+            else:
+                converted_kwargs.extend([key, str(v)])
+
+    return converted_kwargs
+
+
+class Command:
+    _default_kwargs = {'stdout': PIPE, 'stderr': PIPE, 'text': True}
+    _command: list[str]
+    def __init__(self, *args, **kwargs):
+        self._command = [*args]
+        self._kwargs = self._default_kwargs | kwargs
+
+    def __call__(self, *args, **kwargs):
+        cmd = self._command + [*args] + convert_kwargs(kwargs)
+        log.warning(f"Executing: {cmd} with arguments {self._kwargs}")
+        result = Popen(cmd, **self._kwargs)
+        return Result(result)
+
+    def __getitem__(self, *args):
+        # return Command(*(self._command + [*args]), **(self._kwargs | kwargs))
+        return Command(*(self._command + [*args]), **self._kwargs)
+
+    __getattr__ = __getitem__
+
+    def __str__(self):
+        return str(self._command)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._command!r})"
+
+
+class MyModule(ModuleType):
+    def __getattr__(self, name):
+        return Command(name)
+
+sys.modules[__name__] = MyModule(__name__)
 
 if __name__ == '__main__':
     logging.basicConfig()
