@@ -34,6 +34,10 @@ Instead, `aush` makes the transition from shell to Python feel *better*.
 
 Here's the [origin thread on lobste.rs](https://lobste.rs/s/p1hict/zxpy_tool_for_shell_scripting_python#c_agohpx).
 
+# Installation
+
+```pip install aush```
+
 # Examples
 
 I recently make a [create-python](https://github.com/kbd/setup/blob/master/HOME/bin/create-python) program that will initialize a Python project the same way every time, as a [Poetry](https://python-poetry.org/) project with the same set of default dependencies, linters, and so on.
