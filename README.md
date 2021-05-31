@@ -137,6 +137,11 @@ DJANGO_SUPERUSER_PASSWORD='password' python3 manage.py createsuperuser \
 
 Note that, like shell, in `aush` you don't have to manually merge in `os.environ` if you want to add new things to the environment.
 
+A program gets executed when a function call () is made on a `Command`.
+That returns a `Result`.
+The result has `.code`, `.stdout`, and `.stderr` members to get the results of running the command.
+Using the `Result` you can also redirect stdout to a file with `result > 'filename'`, `bool(result)` indicates success or failure of the command, and more.
+
 `aush` calls follow the following conventions:
 
 - positional arguments are passed verbatim
@@ -146,9 +151,6 @@ Note that, like shell, in `aush` you don't have to manually merge in `os.environ
 - if the value of a keyword argument is an iterable (not `str`), it is repeated
 
 If the conventions don't do what you want, you can always fall back to passing exactly the strings you want, positionally, in the list way of creating commands.
-
-A program gets executed when a function call () is made on a `Command`.
-That returns a Result. The program's completion isn't waited for until the
 
 # FAQ
 
