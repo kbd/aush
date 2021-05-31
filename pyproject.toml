@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "autoshell"
+name = "aush"
 version = "0.1.0"
 description = ""
 authors = ["Keith Devens"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.6"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.23.1"
