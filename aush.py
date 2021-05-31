@@ -84,7 +84,7 @@ def _listify(value):
 class Command:
     _default_kwargs = {'stdout': PIPE, 'stderr': PIPE, 'text': True}
     _command: list[str]
-    _kwargs: dict[str, Union[str,Iterable]]
+    _kwargs: dict[str, Union[str, Iterable]]
     _env: dict[str, str]
     def __init__(self, name, *args, _env={}, **kwargs):
         self._command = [name, *args]
@@ -140,7 +140,8 @@ class Command:
 
 class _AushModule(ModuleType):
     __file__ = __file__
-    __path__ = []
+    __path__: list[str] = []
+
     def __getitem__(self, name):
         return Command(name)
 
