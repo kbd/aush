@@ -54,11 +54,11 @@ class Result:
     def __gt__(self, other):
         return self._write(Path(other), 'stdout', 'w')
 
-    def __mul__(self, other):
-        return self._write(Path(other), 'stderr', 'w')
-
     def __rshift__(self, other):
         return self._write(Path(other), 'stdout', 'a')
+
+    def __mul__(self, other):
+        return self._write(Path(other), 'stderr', 'w')
 
     def __pow__(self, other):
         return self._write(Path(other), 'stderr', 'a')
