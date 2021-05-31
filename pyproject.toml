@@ -4,6 +4,7 @@ version = "0.1.1"
 description = "Pythonic subprocess library"
 authors = ["Keith Devens"]
 repository = "https://github.com/kbd/aush"
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.6"
