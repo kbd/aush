@@ -1,14 +1,3 @@
-# usage: import autoshell as a
-# a.echo("hello") (Result object that when stringified is the stdout) > "filename"
-# a.echo.hello() > filename
-# a.echo.hello() | a.cat
-# eventually: from autoshell import echo, ps, etc.
-
-# take custom args to pass through to subprocess.run
-
-# log levels: log.warning for each command run, log.error if sometihng returns
-# with a non-zero error code
-
 import logging
 import sys
 from pathlib import Path
@@ -20,7 +9,8 @@ log = logging.getLogger(__name__)
 
 
 class Result:
-    def __init__(self, process):
+    def __init__(self, command, process):
+        self._command = command
         self._process = process
         self._waited = False
 
@@ -47,16 +37,23 @@ class Result:
     def __str__(self):
         return self.stdout.strip()
 
-    def _write(self, path, mode):
+    def _write(self, path, stream, mode):
         with open(path, mode) as f:
-            log.info(f"Writing ({mode}) to {path}")
-            f.write(self.stdout)
+            log.info(f"Writing {stream} to {path}({mode})")
+            f.write(getattr(self, stream))
+        return self
 
     def __gt__(self, other):
-        self._write(Path(other), 'w')
+        return self._write(Path(other), 'stdout', 'w')
+
+    def __mul__(self, other):
+        return self._write(Path(other), 'stderr', 'w')
 
     def __rshift__(self, other):
-        self._write(Path(other), 'a')
+        return self._write(Path(other), 'stdout', 'a')
+
+    def __pow__(self, other):
+        return self._write(Path(other), 'stderr', 'a')
 
     def __or__(self, other):
         """Pipe two Commands together
@@ -76,23 +73,22 @@ def _listify(value):
     return value if _nonstriterable(value) else [value]
 
 
-def convert_kwargs(kwargs):
-    converted_kwargs = []
+def _convert_kwargs(kwargs):
+    converted_args = []
+    converted_kwargs = {}
     for k, vs in kwargs.items():
         if k.startswith('_'):
-            # todo: args that start with underscore will be special
-            # but anything not understood by autoshell will be passed along to
-            # subprocess.run with the underscore removed
+            converted_kwargs[k[1:]] = vs  # pass arg (- underscore) through to 'run'
             continue
 
         key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
         for v in _listify(vs):
             if v is True:
-                converted_kwargs.append(key)
+                converted_args.append(key)
             else:
-                converted_kwargs.extend([key, str(v)])
+                converted_args.extend([key, str(v)])
 
-    return converted_kwargs
+    return converted_args, converted_kwargs
 
 
 class Command:
@@ -103,13 +99,14 @@ class Command:
         self._kwargs = self._default_kwargs | kwargs
 
     def __call__(self, *args, **kwargs):
-        cmd = self._command + [*args] + convert_kwargs(kwargs)
-        log.warning(f"Executing: {cmd} with arguments {self._kwargs}")
-        result = Popen(cmd, **self._kwargs)
-        return Result(result)
+        converted_args, converted_kwargs = _convert_kwargs(kwargs)
+        cmd = self._command + [*args] + converted_args
+        kwargs = self._kwargs | converted_kwargs
+        log.warning(f"Executing {cmd} with arguments {kwargs}")
+        result = Popen(cmd, **kwargs)
+        return Result(self, result)
 
     def __getitem__(self, *args):
-        # return Command(*(self._command + [*args]), **(self._kwargs | kwargs))
         return Command(*(self._command + [*args]), **self._kwargs)
 
     __getattr__ = __getitem__
@@ -120,12 +117,15 @@ class Command:
     def __repr__(self):
         return f"{self.__class__.__name__}({self._command!r})"
 
+    def __or__(self, other):
+        return self() | other
 
-class MyModule(ModuleType):
+
+class _CommandModule(ModuleType):
     def __getattr__(self, name):
         return Command(name)
 
-sys.modules[__name__] = MyModule(__name__)
+sys.modules[__name__] = _CommandModule(__name__)
 
 if __name__ == '__main__':
     logging.basicConfig()
