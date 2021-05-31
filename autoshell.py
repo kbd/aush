@@ -23,16 +23,23 @@ class Result:
             self._process.stdin.close()
 
         self.stdout, self.stderr = self._process.communicate()
-        self.code = self._process.returncode
+        self.returncode = self._process.returncode
+        self.code = self.returncode
         self.waited = True
 
     def __getattr__(self, name):
         if not self._waited:
-            if name in ['returncode', 'stdout', 'stderr']:
+            if name in ['code', 'returncode', 'stdout', 'stderr']:
                 self.wait()
                 return getattr(self, name)
 
         return getattr(self._process, name)
+
+    def __bool__(self):
+        return self.code == 0
+
+    def __int__(self):
+        return self.code
 
     def __str__(self):
         return self.stdout.strip()
