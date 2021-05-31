@@ -11,6 +11,7 @@
 
 import logging
 import sys
+from pathlib import Path
 from subprocess import PIPE, Popen
 from types import ModuleType
 from typing import Iterable
@@ -42,6 +43,20 @@ class Result:
                 return getattr(self, name)
 
         return getattr(self._process, name)
+
+    def __str__(self):
+        return self.stdout.strip()
+
+    def _write(self, path, mode):
+        with open(path, mode) as f:
+            log.info(f"Writing ({mode}) to {path}")
+            f.write(self.stdout)
+
+    def __gt__(self, other):
+        self._write(Path(other), 'w')
+
+    def __rshift__(self, other):
+        self._write(Path(other), 'a')
 
     def __or__(self, other):
         """Pipe two Commands together
