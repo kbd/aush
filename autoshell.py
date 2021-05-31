@@ -101,9 +101,13 @@ def _convert_kwargs(kwargs):
 class Command:
     _default_kwargs = {'stdout': PIPE, 'stderr': PIPE, 'text': True}
     _command: list[str]
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _env={}, **kwargs):
         self._command = [*args]
         self._kwargs = self._default_kwargs | kwargs
+        # todo: environment variables need to be treated specially:
+        # - they need to be merged when you refine commands
+        # - they should automatically inherit from os.envinon
+        self._env = {}
 
     def __call__(self, *args, **kwargs):
         converted_args, converted_kwargs = _convert_kwargs(kwargs)
@@ -128,11 +132,13 @@ class Command:
         return self() | other
 
 
-class _CommandModule(ModuleType):
-    def __getattr__(self, name):
+class _AushModule(ModuleType):
+    def __getitem__(self, name):
         return Command(name)
 
-sys.modules[__name__] = _CommandModule(__name__)
+    __getattr__ = __getitem__
+
+sys.modules[__name__] = _AushModule(__name__)
 
 if __name__ == '__main__':
     logging.basicConfig()
