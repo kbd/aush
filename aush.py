@@ -52,7 +52,7 @@ class Result:
         return self.code
 
     def __str__(self):
-        return self.stdout.strip()
+        return self.stdout.decode().strip()
 
     def _write(self, path, stream, mode):
         with open(path, mode) as f:
