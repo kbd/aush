@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "aush"
-version = "0.1.3"
+version = "0.2.0"
 description = "Pythonic subprocess library"
 authors = ["Keith Devens"]
 repository = "https://github.com/kbd/aush"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.23.1"

@@ -1,39 +1,48 @@
+import asyncio
+import io
 import logging
 import os
 import sys
+from asyncio.subprocess import PIPE, create_subprocess_exec
 from pathlib import Path
-from subprocess import PIPE, Popen
 from types import ModuleType
 from typing import Iterable, Union
 
 log = logging.getLogger(__name__)
 
+READ_CHUNK_LENGTH = 2**10
+
+LOOP = asyncio.get_event_loop()
+STDERR_COLOR = '\x1b[31m'
+RESET = '\x1b[0m'
+
+
+async def read(stream, echo=True, color=None):
+    buf = io.BytesIO()
+    while chunk := await stream.read(READ_CHUNK_LENGTH):
+        buf.write(chunk)
+        if echo:
+            if color:
+                print(f"{color}{chunk.decode()}{RESET}", end='')
+            else:
+                print(chunk.decode(), end='')
+
+    return buf.getvalue()
+
 
 class Result:
-    def __init__(self, command, process):
+    def __init__(self, command, process_coroutine, echo=True):
         self._command = command
-        self._process = process
-        self._waited = False
-
-    def wait(self):
-        if self._waited:
-            return
-
-        if self._process.stdin and self._process.stdin != PIPE:
-            # https://docs.python.org/3.9/library/subprocess.html#replacing-shell-pipeline
-            self._process.stdin.close()
-
-        self.stdout, self.stderr = self._process.communicate()
-        self.returncode = self._process.returncode
-        self.code = self.returncode
-        self.waited = True
+        self._process = LOOP.run_until_complete(process_coroutine)
+        self.code, self.stdout, self.stderr = LOOP.run_until_complete(
+            asyncio.gather(
+                self._process.wait(),
+                read(self._process.stdout, echo),
+                read(self._process.stderr, echo, STDERR_COLOR),
+            )
+        )
 
     def __getattr__(self, name):
-        if not self._waited:
-            if name in ['code', 'returncode', 'stdout', 'stderr']:
-                self.wait()
-                return getattr(self, name)
-
         return getattr(self._process, name)
 
     def __bool__(self):
@@ -82,7 +91,7 @@ def _listify(value):
 
 
 class Command:
-    _default_kwargs = {'stdout': PIPE, 'stderr': PIPE, 'text': True}
+    _default_kwargs = {'stdout': PIPE, 'stderr': PIPE}
     _command: list[str]
     _kwargs: dict[str, Union[str, Iterable]]
     _env: dict[str, str]
@@ -99,7 +108,7 @@ class Command:
         cmd = self._command + [*args] + converted_args
         kwargs = self._kwargs | converted_kwargs
         log.warning(f"Executing: {cmd}")
-        result = Popen(cmd, **kwargs)
+        result = create_subprocess_exec(*map(str, cmd), **kwargs)
         return Result(self, result)
 
     def __getitem__(self, *args):
@@ -133,7 +142,9 @@ class Command:
 
         env = converted_kwargs.get('env', {})
         if self._env or env:
-            converted_kwargs['env'] = os.environ | self._env | env
+            converted_kwargs['env'] = os.environ | {
+                k: str(v) for k, v in (self._env | env).items()
+            }
 
         return converted_args, converted_kwargs
 
