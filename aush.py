@@ -13,19 +13,21 @@ log = logging.getLogger(__name__)
 READ_CHUNK_LENGTH = 2**10
 
 LOOP = asyncio.get_event_loop()
-STDERR_COLOR = '\x1b[31m'
-RESET = '\x1b[0m'
+STDERR_COLOR = b'\x1b[31m'
+RESET = b'\x1b[0m'
 
 
-async def read(stream, echo=True, color=None):
+async def _read(stream, echo=True, color=None):
     buf = io.BytesIO()
     while chunk := await stream.read(READ_CHUNK_LENGTH):
         buf.write(chunk)
         if echo:
             if color:
-                print(f"{color}{chunk.decode()}{RESET}", end='')
+                for value in color, chunk, RESET:
+                    sys.stdout.buffer.write(value)
             else:
-                print(chunk.decode(), end='')
+                sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.flush()
 
     return buf.getvalue()
 
@@ -37,8 +39,8 @@ class Result:
         self.code, self.stdout, self.stderr = LOOP.run_until_complete(
             asyncio.gather(
                 self._process.wait(),
-                read(self._process.stdout, echo),
-                read(self._process.stderr, echo, STDERR_COLOR),
+                _read(self._process.stdout, echo),
+                _read(self._process.stderr, echo, STDERR_COLOR),
             )
         )
 
@@ -61,16 +63,16 @@ class Result:
         return self
 
     def __gt__(self, other):
-        return self._write(Path(other), 'stdout', 'w')
+        return self._write(Path(other), 'stdout', 'wb')
 
     def __rshift__(self, other):
-        return self._write(Path(other), 'stdout', 'a')
+        return self._write(Path(other), 'stdout', 'ab')
 
     def __mul__(self, other):
-        return self._write(Path(other), 'stderr', 'w')
+        return self._write(Path(other), 'stderr', 'wb')
 
     def __pow__(self, other):
-        return self._write(Path(other), 'stderr', 'a')
+        return self._write(Path(other), 'stderr', 'ab')
 
     def __or__(self, other):
         """Pipe two Commands together
@@ -78,7 +80,8 @@ class Result:
         This directly connects the stdout left -> right like a shell pipeline
         so that commands run in parallel
         """
-        stdin = {'input': self.stdout} if self._waited else {'stdin': self._process.stdout}
+        stdin = {'input': self.stdout}
+        # stdin = {'input': self.stdout} if self._waited else {'stdin': self._process.stdout}
         return Command(*other._command, **(other._kwargs | stdin))
 
 
