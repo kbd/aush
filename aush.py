@@ -157,7 +157,7 @@ class _AushModule(ModuleType):
     __path__: list[str] = []
 
     def __getitem__(self, name):
-        return Command(name)
+        return Command(name.replace('_', '-'))
 
     __getattr__ = __getitem__
 
