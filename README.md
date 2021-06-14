@@ -147,7 +147,7 @@ Using the `Result` you can also redirect stdout to a file with `result > 'filena
 - positional arguments are passed verbatim
 - single-letter keyword arguments are converted to single-dash arguments
 - longer keyword arguments are converted to double-dash arguments
-- underscores in keywords are converted to dashes
+- underscores in keywords and program names are converted to dashes
 - if the value of a keyword argument is an iterable (not `str`), it is repeated
 
 If the conventions don't do what you want, you can always fall back to passing exactly the strings you want, positionally, in the list way of creating commands.
