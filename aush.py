@@ -115,7 +115,7 @@ class Command:
         kwargs = self._kwargs | converted_kwargs
         log.warning(f"Executing: {cmd}")
         result = create_subprocess_exec(*map(str, cmd), **kwargs)
-        return Result(self, result)
+        return Result(self, result, echo=logging.root.level <= logging.INFO)
 
     def __getitem__(self, *args):
         return Command(*(self._command + [*args]), _env=self._env, **self._kwargs)
