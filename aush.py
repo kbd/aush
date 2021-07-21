@@ -117,8 +117,9 @@ class Command:
         result = create_subprocess_exec(*map(str, cmd), **kwargs)
         return Result(self, result, echo=logging.root.level <= logging.INFO)
 
-    def __getitem__(self, *args):
-        return Command(*(self._command + [*args]), _env=self._env, **self._kwargs)
+    def __getitem__(self, name):
+        new_cmd = self._command + [name.replace('_', '-')]
+        return Command(*new_cmd, _env=self._env, **self._kwargs)
 
     __getattr__ = __getitem__
 
@@ -141,7 +142,7 @@ class Command:
 
             key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
             for v in _listify(vs):
-                if v is True:
+                if v is True:  # cmd(foo=True) -> cmd --foo
                     converted_args.append(key)
                 else:
                     converted_args.extend([key, str(v)])
