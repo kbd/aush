@@ -56,6 +56,9 @@ class Result:
     def __str__(self):
         return self.stdout.decode().strip()
 
+    def __iter__(self):
+        yield from str(self).splitlines()
+
     def _write(self, path, stream, mode):
         with open(path, mode) as f:
             log.info(f"Writing {stream} to {path}({mode})")
