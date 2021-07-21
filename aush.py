@@ -24,10 +24,10 @@ async def _read(stream, echo=True, color=None):
         if echo:
             if color:
                 for value in color, chunk, RESET:
-                    sys.stdout.buffer.write(value)
+                    sys.stderr.buffer.write(value)
             else:
-                sys.stdout.buffer.write(chunk)
-            sys.stdout.buffer.flush()
+                sys.stderr.buffer.write(chunk)
+            sys.stderr.buffer.flush()
 
     return buf.getvalue()
 
