@@ -83,9 +83,7 @@ class Result:
         This directly connects the stdout left -> right like a shell pipeline
         so that commands run in parallel
         """
-        stdin = {'input': self.stdout}
-        # stdin = {'input': self.stdout} if self._waited else {'stdin': self._process.stdout}
-        return Command(*other._command, **(other._kwargs | stdin))
+        return Command(*other._command, **{**other._kwargs, 'stdin': io.BytesIO(self.stdout)})
 
 
 def _nonstriterable(value):
