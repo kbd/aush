@@ -161,6 +161,11 @@ class _AushModule(ModuleType):
     __path__: list[str] = []
 
     def __getitem__(self, name):
+        if name == 'cd':
+            # special-case cd because running cd as a subprocess
+            # doesn't change the working directory of this process
+            return os.chdir
+
         return Command(name.replace('_', '-'))
 
     __getattr__ = __getitem__
