@@ -30,13 +30,15 @@ class Command:
     _command: list[str]
     _kwargs: dict[str, Union[str, Iterable]]
     _env: dict[str, str]
-    def __init__(self, name, *args, _env={}, **kwargs):
+    _check: bool
+    def __init__(self, name, *args, _env={}, _check=True, **kwargs):
         self._command = [name, *args]
         self._kwargs = self._default_kwargs | kwargs
         # environment variables need to be treated specially:
         # - they need to be merged when you refine commands
         # - they should automatically inherit from os.environ when called
         self._env = {} | _env
+        self._check = _check
 
     def __call__(self, *args, **kwargs):
         converted_args, converted_kwargs = self._convert_kwargs(kwargs)
@@ -112,6 +114,8 @@ class Result:
                 _read(self._process.stderr, echo, STDERR_COLOR),
             )
         )
+        if self.code and self._command._check:
+            raise Exception(f"{self._command!r} returned non-zero exit status {self.code}")
 
     def __getattr__(self, name):
         return getattr(self._process, name)
