@@ -46,8 +46,8 @@ class Command:
         result = create_subprocess_exec(*map(str, cmd), **kwargs)
         return Result(self, result, echo=logging.root.level <= logging.INFO)
 
-    def __getitem__(self, *args):
-        new_cmd = self._command + list(*args)
+    def __getitem__(self, key):
+        new_cmd = self._command + list([key] if isinstance(key, str) else key)
         return Command(*new_cmd, _env=self._env, **self._kwargs)
 
     def __getattr__(self, name):
