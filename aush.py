@@ -17,77 +17,6 @@ STDERR_COLOR = b'\x1b[31m'
 RESET = b'\x1b[0m'
 
 
-async def _read(stream, echo=True, color=None):
-    buf = io.BytesIO()
-    while chunk := await stream.read(READ_CHUNK_LENGTH):
-        buf.write(chunk)
-        if echo:
-            if color:
-                for value in color, chunk, RESET:
-                    sys.stderr.buffer.write(value)
-            else:
-                sys.stderr.buffer.write(chunk)
-            sys.stderr.buffer.flush()
-
-    return buf.getvalue()
-
-
-class Result:
-    def __init__(self, command, process_coroutine, echo=True):
-        self._command = command
-        self._process = LOOP.run_until_complete(process_coroutine)
-        self.code, self.stdout, self.stderr = LOOP.run_until_complete(
-            asyncio.gather(
-                self._process.wait(),
-                _read(self._process.stdout, echo),
-                _read(self._process.stderr, echo, STDERR_COLOR),
-            )
-        )
-
-    def __getattr__(self, name):
-        return getattr(self._process, name)
-
-    def __bool__(self):
-        return self.code == 0
-
-    def __int__(self):
-        return self.code
-
-    def __str__(self):
-        return self.stdout.decode().strip()
-
-    def __iter__(self):
-        yield from str(self).splitlines()
-
-    def _write(self, path, stream, mode):
-        with open(path, mode) as f:
-            log.info(f"Writing {stream} to {path}({mode})")
-            f.write(getattr(self, stream))
-        return self
-
-    def __gt__(self, other):
-        return self._write(Path(other), 'stdout', 'wb')
-
-    def __rshift__(self, other):
-        return self._write(Path(other), 'stdout', 'ab')
-
-    def __mul__(self, other):
-        return self._write(Path(other), 'stderr', 'wb')
-
-    def __pow__(self, other):
-        return self._write(Path(other), 'stderr', 'ab')
-
-    def __or__(self, other):
-        """Pipe two Commands together
-
-        This directly connects the stdout left -> right like a shell pipeline
-        so that commands run in parallel
-        """
-        stdin = {'input': self.stdout}
-        # stdin = {'input': self.stdout} if self._waited else {'stdin': self._process.stdout}
-        return Command(*other._command, **(other._kwargs | stdin))
-
-
 def _nonstriterable(value):
     return isinstance(value, Iterable) and not isinstance(value, str)
 
@@ -154,6 +83,77 @@ class Command:
             }
 
         return converted_args, converted_kwargs
+
+
+async def _read(stream, echo=True, color=None):
+    buf = io.BytesIO()
+    while chunk := await stream.read(READ_CHUNK_LENGTH):
+        buf.write(chunk)
+        if echo:
+            if color:
+                for value in color, chunk, RESET:
+                    sys.stderr.buffer.write(value)
+            else:
+                sys.stderr.buffer.write(chunk)
+            sys.stderr.buffer.flush()
+
+    return buf.getvalue()
+
+
+class Result:
+    def __init__(self, command: Command, process_coroutine, echo=True):
+        self._command = command
+        self._process = LOOP.run_until_complete(process_coroutine)
+        self.code, self.stdout, self.stderr = LOOP.run_until_complete(
+            asyncio.gather(
+                self._process.wait(),
+                _read(self._process.stdout, echo),
+                _read(self._process.stderr, echo, STDERR_COLOR),
+            )
+        )
+
+    def __getattr__(self, name):
+        return getattr(self._process, name)
+
+    def __bool__(self):
+        return self.code == 0
+
+    def __int__(self):
+        return self.code
+
+    def __str__(self):
+        return self.stdout.decode().strip()
+
+    def __iter__(self):
+        yield from str(self).splitlines()
+
+    def _write(self, path, stream, mode):
+        with open(path, mode) as f:
+            log.info(f"Writing {stream} to {path}({mode})")
+            f.write(getattr(self, stream))
+        return self
+
+    def __gt__(self, other):
+        return self._write(Path(other), 'stdout', 'wb')
+
+    def __rshift__(self, other):
+        return self._write(Path(other), 'stdout', 'ab')
+
+    def __mul__(self, other):
+        return self._write(Path(other), 'stderr', 'wb')
+
+    def __pow__(self, other):
+        return self._write(Path(other), 'stderr', 'ab')
+
+    def __or__(self, other):
+        """Pipe two Commands together
+
+        This directly connects the stdout left -> right like a shell pipeline
+        so that commands run in parallel
+        """
+        stdin = {'input': self.stdout}
+        # stdin = {'input': self.stdout} if self._waited else {'stdin': self._process.stdout}
+        return Command(*other._command, **(other._kwargs | stdin))
 
 
 class _AushModule(ModuleType):
