@@ -6,7 +6,7 @@ import sys
 from asyncio.subprocess import PIPE, create_subprocess_exec
 from pathlib import Path
 from types import ModuleType
-from typing import Iterable, Union
+from typing import Any, Iterable
 
 log = logging.getLogger(__name__)
 
@@ -28,10 +28,10 @@ def _listify(value):
 class Command:
     _default_kwargs = {'stdout': PIPE, 'stderr': PIPE}
     _command: list[str]
-    _kwargs: dict[str, Union[str, Iterable]]
+    _kwargs: dict[str, Any]
     _env: dict[str, str]
     _check: bool
-    def __init__(self, name, *args, _env={}, _check=True, **kwargs):
+    def __init__(self, name, *args, _check=True, _env={}, **kwargs):
         self._command = [name, *args]
         self._kwargs = self._default_kwargs | kwargs
         # environment variables need to be treated specially:
@@ -40,17 +40,22 @@ class Command:
         self._env = {} | _env
         self._check = _check
 
-    def __call__(self, *args, **kwargs):
+    def _bake(self, *args, **kwargs):
+        check = kwargs.pop('_check', self._check)
         converted_args, converted_kwargs = self._convert_kwargs(kwargs)
         cmd = self._command + [*args] + converted_args
         kwargs = self._kwargs | converted_kwargs
+        return Command(*cmd, _check=check, _env=self._env, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        cmd = self._bake(*args, **kwargs)
         log.warning(f"Executing: {cmd}")
-        result = create_subprocess_exec(*map(str, cmd), **kwargs)
-        return Result(self, result, echo=logging.root.level <= logging.INFO)
+        echo = logging.root.level <= logging.INFO
+        return Result(cmd, echo)
 
     def __getitem__(self, key):
         new_cmd = self._command + list([key] if isinstance(key, str) else key)
-        return Command(*new_cmd, _env=self._env, **self._kwargs)
+        return Command(*new_cmd, _check=self._check, _env=self._env, **self._kwargs)
 
     def __getattr__(self, name):
         return self[name.replace('_', '-')]
@@ -105,10 +110,9 @@ class Command:
         return converted_args, converted_kwargs
 
 
-async def _read(stream, echo=True, color=None):
-    buf = io.BytesIO()
+async def _read(buffer, stream, echo=True, color=None):
     while chunk := await stream.read(READ_CHUNK_LENGTH):
-        buf.write(chunk)
+        buffer.write(chunk)
         if echo:
             if color:
                 for value in color, chunk, RESET:
@@ -117,22 +121,46 @@ async def _read(stream, echo=True, color=None):
                 sys.stderr.buffer.write(chunk)
             sys.stderr.buffer.flush()
 
-    return buf.getvalue()
+    return buffer.getvalue()
 
 
 class Result:
-    def __init__(self, command: Command, process_coroutine, echo=True):
+    def __init__(self, command: Command, echo=True):
         self._command = command
+        self._stdout = io.BytesIO()
+        self._stderr = io.BytesIO()
+
+        process_coroutine = create_subprocess_exec(*command._command, **command._kwargs)
         self._process = LOOP.run_until_complete(process_coroutine)
-        self.code, self.stdout, self.stderr = LOOP.run_until_complete(
-            asyncio.gather(
-                self._process.wait(),
-                _read(self._process.stdout, echo),
-                _read(self._process.stderr, echo, STDERR_COLOR),
-            )
-        )
-        if self.code and self._command._check:
+        LOOP.create_task(_read(self._stdout, self._process.stdout, echo))
+        LOOP.create_task(_read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR))
+
+        if self._command._check and self.code:
+            # lazily evaluates code, which blocks, only if _check
             raise Exception(f"{self._command!r} returned non-zero exit status {self.code}")
+
+    @property
+    def finished(self):
+        return self._process.returncode is not None
+
+    def wait(self):
+        if not self.finished:
+            LOOP.run_until_complete(self._process.wait())
+
+    @property
+    def code(self):
+        self.wait()
+        return self._process.returncode
+
+    @property
+    def stdout(self):
+        self.wait()
+        return self._stdout.getvalue()
+
+    @property
+    def stderr(self):
+        self.wait()
+        return self._stderr.getvalue()
 
     def __getattr__(self, name):
         return getattr(self._process, name)
@@ -173,9 +201,7 @@ class Result:
         This directly connects the stdout left -> right like a shell pipeline
         so that commands run in parallel
         """
-        stdin = {'input': self.stdout}
-        # stdin = {'input': self.stdout} if self._waited else {'stdin': self._process.stdout}
-        return Command(*other._command, **(other._kwargs | stdin))
+        return other._bake(_stdin=self._stdout)
 
 
 class _AushModule(ModuleType):
