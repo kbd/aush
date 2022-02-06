@@ -65,6 +65,23 @@ class Command:
         return self() | other
 
     def _convert_kwargs(self, kwargs):
+        """Convert arguments passed by keywords into those that are passed as
+        arguments to the subprocess vs those that are passed to the subprocess.
+
+        Arguments that start with underscore are treated specially and are
+        passed through to the underlying subprocess call.
+
+        All other arguments are passed through as arguments to the program
+        opened in the subprocess call, according to the following rules:
+
+        - underscores are converted to dashes: shell convention tends towards
+          dashes, while tokens in Python can only contain underscores.
+        - if an argument value is True (eg. foo=True), it is passed through to
+          the underlying subprocess call as either -f or --foo, depending on
+          how many letters the argument has.
+        - if _env is passed, is it merged with the wider os environment and
+          passed to the subprocess's env call
+        """
         converted_args = []
         converted_kwargs = {}
         for k, vs in kwargs.items():
