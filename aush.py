@@ -130,7 +130,7 @@ class Result:
         self._stdout = io.BytesIO()
         self._stderr = io.BytesIO()
 
-        process_coroutine = create_subprocess_exec(*command._command, **command._kwargs)
+        process_coroutine = create_subprocess_exec(*map(str, command._command), **command._kwargs)
         self._process = LOOP.run_until_complete(process_coroutine)
         LOOP.create_task(_read(self._stdout, self._process.stdout, echo))
         LOOP.create_task(_read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR))
