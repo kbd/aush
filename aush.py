@@ -49,7 +49,6 @@ class Command:
 
     def __call__(self, *args, **kwargs):
         cmd = self._bake(*args, **kwargs)
-        log.warning(f"Executing: {cmd}")
         echo = logging.root.level <= logging.INFO
         return Result(cmd, echo)
 
@@ -130,7 +129,9 @@ class Result:
         self._stdout = io.BytesIO()
         self._stderr = io.BytesIO()
 
-        process_coroutine = create_subprocess_exec(*map(str, command._command), **command._kwargs)
+        cmd = list(map(str, command._command))
+        log.warning(f"Executing: {cmd}")
+        process_coroutine = create_subprocess_exec(*cmd, **command._kwargs)
         self._process = LOOP.run_until_complete(process_coroutine)
         LOOP.create_task(_read(self._stdout, self._process.stdout, echo))
         LOOP.create_task(_read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR))
