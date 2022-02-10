@@ -174,6 +174,9 @@ class Result:
     def __str__(self):
         return self.stdout.decode().strip()
 
+    def __bytes__(self):
+        return self.stdout
+
     def __iter__(self):
         yield from str(self).splitlines()
 
