@@ -25,6 +25,41 @@ def _listify(value):
     return value if _nonstriterable(value) else [value]
 
 
+def _convert_kwargs(kwargs):
+    """Convert arguments passed by keywords into those that are passed as
+    arguments to the subprocess vs those that are passed to the subprocess.
+
+    Arguments that start with underscore are treated specially and are
+    passed through to the underlying subprocess call.
+
+    All other arguments are passed through as arguments to the program
+    opened in the subprocess call, according to the following rules:
+
+    - underscores are converted to dashes: shell convention tends towards
+        dashes, while tokens in Python can only contain underscores.
+    - if an argument value is True (eg. foo=True), it is passed through to
+        the underlying subprocess call as either -f or --foo, depending on
+        how many letters the argument has.
+    - if _env is passed, is it merged with the wider os environment and
+        passed to the subprocess's env call
+    """
+    subprocess_args = []
+    subprocess_kwargs = {}
+    for k, vs in kwargs.items():
+        if k.startswith('_'):
+            subprocess_kwargs[k[1:]] = vs  # pass arg (- underscore) through to 'run'
+            continue
+
+        key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
+        for v in _listify(vs):
+            if v is True:  # cmd(foo=True) -> cmd --foo
+                subprocess_args.append(key)
+            else:
+                subprocess_args.extend([key, str(v)])
+
+    return subprocess_args, subprocess_kwargs
+
+
 class Command:
     _default_kwargs = {'_stdout': PIPE, '_stderr': PIPE}
     _command: list[str]
@@ -38,7 +73,7 @@ class Command:
         self._name = args[0].replace('_', '-')
         self._check = _check
         self._kwargs = kwargs
-        subprocess_args, subprocess_kwargs,  = self._convert_kwargs(self._default_kwargs | kwargs)
+        subprocess_args, subprocess_kwargs = _convert_kwargs(self._default_kwargs | kwargs)
         self._command = [*args] + subprocess_args
         self._subprocess_kwargs = subprocess_kwargs
 
@@ -70,41 +105,6 @@ class Command:
 
     def __or__(self, other):
         return Pipeline(self, other)
-
-    def _convert_kwargs(self, kwargs):
-        """Convert arguments passed by keywords into those that are passed as
-        arguments to the subprocess vs those that are passed to the subprocess.
-
-        Arguments that start with underscore are treated specially and are
-        passed through to the underlying subprocess call.
-
-        All other arguments are passed through as arguments to the program
-        opened in the subprocess call, according to the following rules:
-
-        - underscores are converted to dashes: shell convention tends towards
-          dashes, while tokens in Python can only contain underscores.
-        - if an argument value is True (eg. foo=True), it is passed through to
-          the underlying subprocess call as either -f or --foo, depending on
-          how many letters the argument has.
-        - if _env is passed, is it merged with the wider os environment and
-          passed to the subprocess's env call
-        """
-        converted_args = []
-        converted_kwargs = {}
-        for k, vs in kwargs.items():
-            if k.startswith('_'):
-                converted_kwargs[k[1:]] = vs  # pass arg (- underscore) through to 'run'
-                continue
-
-            breakpoint()
-            key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
-            for v in _listify(vs):
-                if v is True:  # cmd(foo=True) -> cmd --foo
-                    converted_args.append(key)
-                else:
-                    converted_args.extend([key, str(v)])
-
-        return converted_args, converted_kwargs
 
 
 async def _read(buffer, stream, echo=True, color=None):
