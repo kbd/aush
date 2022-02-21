@@ -135,8 +135,10 @@ class Result:
         self._stderr = io.BytesIO()
 
         self._process = LOOP.run_until_complete(_run(command))
-        LOOP.run_until_complete(_read(self._stdout, self._process.stdout, echo))
-        LOOP.run_until_complete(_read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR))
+        LOOP.run_until_complete(asyncio.gather(
+            _read(self._stdout, self._process.stdout, echo),
+            _read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR),
+        ))
 
         if self._command._check and self.code:
             # lazily evaluates code, which blocks, only if _check
