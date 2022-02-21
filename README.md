@@ -152,6 +152,14 @@ Using the `Result` you can also redirect stdout to a file with `result > 'filena
 
 If the conventions don't do what you want, you can always fall back to passing exactly the strings you want, positionally, in the list way of creating commands.
 
+# aush Design Goals:
+
+* make it easy to call subprocesses and get their outputs
+* make subprocesses calls *look* like idiomatic Python
+* favor convenience over performance/control (there are lower level apis available to use)
+* but still enable shell performance patterns (piping and redirecting shouldn't have to wait for one process to complete in order to start)
+* provide the *most convenient* way to write "shell scripts", better than bash alone or Python alone
+
 # FAQ
 
 Q. Pronunciation?

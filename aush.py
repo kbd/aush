@@ -6,7 +6,7 @@ import sys
 from asyncio.subprocess import PIPE, create_subprocess_exec
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Iterable
+from typing import Any, Iterable, Union
 
 log = logging.getLogger(__name__)
 
@@ -26,35 +26,34 @@ def _listify(value):
 
 
 class Command:
-    _default_kwargs = {'stdout': PIPE, 'stderr': PIPE}
+    _default_kwargs = {'_stdout': PIPE, '_stderr': PIPE}
     _command: list[str]
     _kwargs: dict[str, Any]
     _env: dict[str, str]
     _check: bool
-    def __init__(self, name, *args, _check=True, _env={}, **kwargs):
-        self._command = [name, *args]
-        self._kwargs = self._default_kwargs | kwargs
-        # environment variables need to be treated specially:
-        # - they need to be merged when you refine commands
-        # - they should automatically inherit from os.environ when called
-        self._env = {} | _env
+    def __init__(self, *args, _check=True, **kwargs):
         self._check = _check
+        converted_args, converted_kwargs = self._convert_kwargs(self._default_kwargs | kwargs)
+        self._command = [*args] + converted_args
+        self._subprocess_kwargs = converted_kwargs
+        print("constructing:",self._command, self._kwargs)
 
     def _bake(self, *args, **kwargs):
-        check = kwargs.pop('_check', self._check)
-        converted_args, converted_kwargs = self._convert_kwargs(kwargs)
-        cmd = self._command + [*args] + converted_args
-        kwargs = self._kwargs | converted_kwargs
-        return Command(*cmd, _check=check, _env=self._env, **kwargs)
+        return Command(*self._command, *args, **(self._kwargs | kwargs))
 
     def __call__(self, *args, **kwargs):
+        kwargs = kwargs.copy()
+        if env := kwargs.get('_env'):
+            # merge provided env with os.environ
+            kwargs['_env'] = os.environ | {k: str(v) for k, v in env.items()}
+
         cmd = self._bake(*args, **kwargs)
-        echo = logging.root.level <= logging.INFO
-        return Result(cmd, echo)
+        return Result(cmd, logging.root.level <= logging.INFO)
 
     def __getitem__(self, key):
         new_cmd = self._command + list([key] if isinstance(key, str) else key)
-        return Command(*new_cmd, _check=self._check, _env=self._env, **self._kwargs)
+
+        return Command(*new_cmd, _check=self._check, **self._kwargs)
 
     def __getattr__(self, name):
         return self[name.replace('_', '-')]
@@ -63,10 +62,10 @@ class Command:
         return str(self._command)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self._command!r})"
+        return f"{self.__class__.__name__}({self._command})"
 
     def __or__(self, other):
-        return self() | other
+        return Pipeline(self, other)
 
     def _convert_kwargs(self, kwargs):
         """Convert arguments passed by keywords into those that are passed as
@@ -99,12 +98,6 @@ class Command:
                     converted_args.append(key)
                 else:
                     converted_args.extend([key, str(v)])
-
-        env = converted_kwargs.get('env', {})
-        if self._env or env:
-            converted_kwargs['env'] = os.environ | {
-                k: str(v) for k, v in (self._env | env).items()
-            }
 
         return converted_args, converted_kwargs
 
@@ -187,6 +180,9 @@ class Result:
             f.write(getattr(self, stream))
         return self
 
+    # todo: make these redirection writes async, but ensure any read tasks
+    # finish when the process closes.
+    # Probaxbly need to put all reads/writes on a queue
     def __gt__(self, other):
         return self._write(Path(other), 'stdout', 'wb')
 
@@ -199,13 +195,18 @@ class Result:
     def __pow__(self, other):
         return self._write(Path(other), 'stderr', 'ab')
 
-    def __or__(self, other):
-        """Pipe two Commands together
 
-        This directly connects the stdout left -> right like a shell pipeline
-        so that commands run in parallel
-        """
-        return other._bake(_stdin=self._stdout)
+class Pipeline:
+    def __init__(self, left: Union[str, Result, Command, "Pipeline"], right: Command):
+        self.left = left
+        self.right = right
+
+    def __call__(self):
+        if isinstance(self.left, Command):
+            result = self.left(_check=False)
+            return self.right(_stdin=result._process.stdin)
+
+        self.right._bake(_stdin=self.left.stdout)
 
 
 class _AushModule(ModuleType):
