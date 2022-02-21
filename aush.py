@@ -67,7 +67,7 @@ class Command:
     _env: dict[str, str]
     _check: bool
     def __init__(self, *args, _check=True, **kwargs):
-        if len(args) == 0:
+        if not args:
             raise Exception("Must provide command name")
 
         self._name = args[0].replace('_', '-')
