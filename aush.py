@@ -121,18 +121,22 @@ async def _read(buffer, stream, echo=True, color=None):
     return buffer.getvalue()
 
 
+async def _run(command: Command):
+    """Run a Command, return the Process object"""
+    cmd = list(map(str, command._command))
+    log.warning(f"Executing: {cmd}")
+    return await create_subprocess_exec(*cmd, **command._subprocess_kwargs)
+
+
 class Result:
     def __init__(self, command: Command, echo=True):
         self._command = command
         self._stdout = io.BytesIO()
         self._stderr = io.BytesIO()
 
-        cmd = list(map(str, command._command))
-        log.warning(f"Executing: {cmd}")
-        process_coroutine = create_subprocess_exec(*cmd, **command._subprocess_kwargs)
-        self._process = LOOP.run_until_complete(process_coroutine)
-        LOOP.create_task(_read(self._stdout, self._process.stdout, echo))
-        LOOP.create_task(_read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR))
+        self._process = LOOP.run_until_complete(_run(command))
+        LOOP.run_until_complete(_read(self._stdout, self._process.stdout, echo))
+        LOOP.run_until_complete(_read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR))
 
         if self._command._check and self.code:
             # lazily evaluates code, which blocks, only if _check
