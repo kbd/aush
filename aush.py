@@ -32,11 +32,15 @@ class Command:
     _env: dict[str, str]
     _check: bool
     def __init__(self, *args, _check=True, **kwargs):
+        if len(args) == 0:
+            raise Exception("Must provide command name")
+
+        self._name = args[0].replace('_', '-')
         self._check = _check
-        converted_args, converted_kwargs = self._convert_kwargs(self._default_kwargs | kwargs)
-        self._command = [*args] + converted_args
-        self._subprocess_kwargs = converted_kwargs
-        print("constructing:",self._command, self._kwargs)
+        self._kwargs = kwargs
+        subprocess_args, subprocess_kwargs,  = self._convert_kwargs(self._default_kwargs | kwargs)
+        self._command = [*args] + subprocess_args
+        self._subprocess_kwargs = subprocess_kwargs
 
     def _bake(self, *args, **kwargs):
         return Command(*self._command, *args, **(self._kwargs | kwargs))
@@ -56,7 +60,7 @@ class Command:
         return Command(*new_cmd, _check=self._check, **self._kwargs)
 
     def __getattr__(self, name):
-        return self[name.replace('_', '-')]
+        return self[name]
 
     def __str__(self):
         return str(self._command)
@@ -92,6 +96,7 @@ class Command:
                 converted_kwargs[k[1:]] = vs  # pass arg (- underscore) through to 'run'
                 continue
 
+            breakpoint()
             key = f"{'-' * min(len(k), 2)}{k.replace('_', '-')}"
             for v in _listify(vs):
                 if v is True:  # cmd(foo=True) -> cmd --foo
@@ -124,7 +129,7 @@ class Result:
 
         cmd = list(map(str, command._command))
         log.warning(f"Executing: {cmd}")
-        process_coroutine = create_subprocess_exec(*cmd, **command._kwargs)
+        process_coroutine = create_subprocess_exec(*cmd, **command._subprocess_kwargs)
         self._process = LOOP.run_until_complete(process_coroutine)
         LOOP.create_task(_read(self._stdout, self._process.stdout, echo))
         LOOP.create_task(_read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR))
@@ -219,7 +224,7 @@ class _AushModule(ModuleType):
             # doesn't change the working directory of this process
             return os.chdir
 
-        return Command(name.replace('_', '-'))
+        return Command(name)
 
     __getattr__ = __getitem__
 
