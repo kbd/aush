@@ -154,11 +154,29 @@ If the conventions don't do what you want, you can always fall back to passing e
 
 # aush Design Goals:
 
+## `aush` should provide the *most convenient* way to write "shell scripts"
+
 * make it easy to call subprocesses and get their outputs
 * make subprocesses calls *look* like idiomatic Python
-* favor convenience over performance/control (there are lower level apis available to use)
-* but still enable shell performance patterns (piping and redirecting shouldn't have to wait for one process to complete in order to start)
-* provide the *most convenient* way to write "shell scripts", better than bash alone or Python alone
+* favor convenience over performance/control (there are lower level APIs available to use)
+* but still enable shell performance patterns, such as:
+  * piping and redirecting shouldn't have to wait for one process to complete in order to start
+  * aush can (optionally) log stdout/stderr "as they happen" same as you would for a shell script
+* Safer subprocess management
+  * be "safer" than shell scripts or Python
+  * fewer opportunities for string substitution or incorrect input handling leading to deadlocks
+  * throws exceptions on non-zero return codes (like set -e by default) to make it harder to miss error cases
+
+## Secondary design goals
+
+* it should make good use of asyncio, and eventually help script applications like expect
+* it should allow you to build tools around cli tools, like timestamping each line of output (something I miss from iTerm2)
+* just like you'd use Pandas to deal with tabular data (I'll often use it just to massage csvs) I hope `aush` can be useful for calling subprocesses in your programs, and help write *safer* programs that interact with subprocesses, and bigger "shell scripts" than you would otherwise
+* Allow `aush` to be a command-line program itself that does something? Maybe when called as a module it can provide testing utilities like my `argv` or `randomtextgenerator`. Maybe an "aush script" could find a way to automatically import anything not found in python space and try to run it? That way you can avoid the 'from aush import a million things' and turn logging on, etc.
+
+## Non-goals
+
+* `aush` is not a new language or an interactive shell; it's just a Python library
 
 # FAQ
 
