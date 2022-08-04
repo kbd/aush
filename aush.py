@@ -196,7 +196,7 @@ class Result:
 
     # todo: make these redirection writes async, but ensure any read tasks
     # finish when the process closes.
-    # Probaxbly need to put all reads/writes on a queue
+    # Probably need to put all reads/writes on a queue
     def __gt__(self, other):
         return self._write(Path(other), 'stdout', 'wb')
 
