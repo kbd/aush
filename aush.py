@@ -70,7 +70,7 @@ class Command:
         if not args:
             raise Exception("Must provide command name")
 
-        self._name = args[0].replace('_', '-')
+        self._name = args[0]
         self._check = _check
         self._kwargs = kwargs
         subprocess_args, subprocess_kwargs = _convert_kwargs(self._default_kwargs | kwargs)
@@ -95,7 +95,7 @@ class Command:
         return Command(*new_cmd, _check=self._check, **self._kwargs)
 
     def __getattr__(self, name):
-        return self[name]
+        return self[name.replace('_', '-')]
 
     def __str__(self):
         return str(self._command)
@@ -232,7 +232,8 @@ class _AushModule(ModuleType):
 
         return Command(name)
 
-    __getattr__ = __getitem__
+    def __getattr__(self, name):
+        return self[name.replace('_', '-')]
 
 sys.modules[__name__] = _AushModule(__name__)
 
