@@ -2,6 +2,7 @@
 name = "aush"
 version = "0.9.3"
 description = "Pythonic subprocess library"
+readme = "README.md"
 authors = ["Keith Devens"]
 repository = "https://github.com/kbd/aush"
 license = "MIT"
