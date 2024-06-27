@@ -223,11 +223,65 @@ class Pipeline:
         self.right._bake(_stdin=self.left.stdout)
 
 
+def esc(i):
+    return f'\x1b[{i}m'
+
+
+class D(dict):
+    __getattr__ = dict.__getitem__
+
+
+class ColorFormatter(type):
+    def __getattr__(cls, name):
+        """Build up formatters dynamically"""
+        codes = []
+        formatters = name.split("_")
+        for f in formatters:
+            found = None
+            if f.startswith('bg'):
+                if f[2:] not in cls.b:
+                    break
+                found = cls.b
+            else:
+                for d in cls.c, cls.f:
+                    if f in d:
+                        found = d
+                        break
+
+            if not found:
+                raise AttributeError(f"{f} is not a valid formatter")
+
+            codes.append(found[f])
+
+        return lambda text: f"{''.join(codes)}{text}{cls.c.reset}"
+
+
+class COLORS(metaclass=ColorFormatter):
+    # https://en.`wikipedia.org/wiki/ANSI_escape_code
+    colors = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+    codes = dict(reset=0, bold=1, it=3, ul=4, rev=7, it_off=23, ul_off=24, rev_off=27)
+
+    c = D({name: esc(i) for name, i in codes.items()})  # c = control
+    f = D({c: esc(30+i) for i,c in enumerate(colors)})  # f = foreground
+    b = D({c: esc(40+i) for i,c in enumerate(colors)})  # b = background
+    e = D(  # e = escapes for use within prompt, o=open, c=close
+        zsh=D(o='%{', c='%}'),
+        bash=D(o='\\[\x1b[', c='\\]'),
+        interactive=D(o='', c=''),
+    )
+
+
 class _AushModule(ModuleType):
     __file__ = __file__
     __path__: list[str] = []
 
     def __getitem__(self, name):
+        if name.isupper():
+            g = globals()
+            if name in g:
+                return g[name]
+            raise ImportError(f"module {__name__!r} has no attribute {name!r}")
+
         if name == 'cd':
             # special-case cd because running cd as a subprocess
             # doesn't change the working directory of this process
