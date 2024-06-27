@@ -254,19 +254,20 @@ class ColorMeta(type):
         for f in formatters:
             found = None
             if f.startswith('bg'):
-                if f[2:] not in cls.b:
-                    break
-                found = cls.b
+                code = f[2:]
+                if code in cls.b:
+                    found = cls.b
             else:
                 for d in cls.c, cls.f:
                     if f in d:
                         found = d
+                        code = f
                         break
 
             if not found:
                 raise AttributeError(f"{f} is not a valid formatter")
 
-            codes.append(found[f])
+            codes.append(found[code])
 
         return Formatter(name, ''.join(codes))
 
