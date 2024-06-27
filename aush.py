@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from asyncio.subprocess import PIPE, create_subprocess_exec
+from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Iterable, Union
@@ -247,6 +248,7 @@ class Formatter:
 
 
 class ColorMeta(type):
+    @lru_cache
     def __getattr__(cls, name):
         """Build up formatters dynamically"""
         codes = []
