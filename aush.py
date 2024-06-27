@@ -231,7 +231,22 @@ class D(dict):
     __getattr__ = dict.__getitem__
 
 
-class ColorFormatter(type):
+class Formatter:
+    def __init__(self, name, code):
+        self.name = name
+        self.code = code
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"{self.__module__}.{self.__class__.__name__}({self.name})"
+
+    def __call__(self, text):
+        return f"{self.code}{text}{COLORS.c.reset}"
+
+
+class ColorMeta(type):
     def __getattr__(cls, name):
         """Build up formatters dynamically"""
         codes = []
@@ -253,10 +268,10 @@ class ColorFormatter(type):
 
             codes.append(found[f])
 
-        return lambda text: f"{''.join(codes)}{text}{cls.c.reset}"
+        return Formatter(name, ''.join(codes))
 
 
-class COLORS(metaclass=ColorFormatter):
+class COLORS(metaclass=ColorMeta):
     # https://en.`wikipedia.org/wiki/ANSI_escape_code
     colors = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
     codes = dict(reset=0, bold=1, it=3, ul=4, rev=7, it_off=23, ul_off=24, rev_off=27)
