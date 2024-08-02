@@ -2,8 +2,10 @@ import asyncio
 import io
 import logging
 import os
+import re
 import sys
 from asyncio.subprocess import PIPE, create_subprocess_exec
+from collections import ChainMap
 from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
@@ -14,8 +16,8 @@ log = logging.getLogger(__name__)
 READ_CHUNK_LENGTH = 2**10
 
 LOOP = asyncio.get_event_loop()
-STDERR_COLOR = b'\x1b[31m'
 RESET = b'\x1b[0m'
+HEX_RE = re.compile(r"^\#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$")
 
 
 def _nonstriterable(value):
@@ -138,7 +140,7 @@ class Result:
         self._process = LOOP.run_until_complete(_run(command))
         LOOP.run_until_complete(asyncio.gather(
             _read(self._stdout, self._process.stdout, echo),
-            _read(self._stderr, self._process.stderr, echo, color=STDERR_COLOR),
+            _read(self._stderr, self._process.stderr, echo, color=COLORS.red),
         ))
 
         if self._command._check and self.code:
@@ -225,7 +227,7 @@ class Pipeline:
 
 
 def esc(i):
-    return f'\x1b[{i}m'
+    return f'\x1b[{i}m'  # \x1b == \e
 
 
 class D(dict):
@@ -254,24 +256,25 @@ class ColorMeta(type):
         codes = []
         formatters = name.split("_")
         for f in formatters:
-            found = None
+            code = None
             if f.startswith('bg'):
-                code = f[2:]
-                if code in cls.b:
-                    found = cls.b
+                if (tempcode := f[2:]) in cls.b:
+                    code = cls.b[tempcode]
+                elif HEX_RE.match(tempcode):
+                    code = COLORS.hexbg(tempcode)
             else:
-                for d in cls.c, cls.f:
-                    if f in d:
-                        found = d
-                        code = f
-                        break
+                code = ChainMap(cls.c, cls.f).get(f)
+                if not code and HEX_RE.match(f):
+                    code = COLORS.hexfg(f)
 
-            if not found:
+            if not code:
                 raise AttributeError(f"{f} is not a valid formatter")
 
-            codes.append(found[code])
+            codes.append(code)
 
         return Formatter(name, ''.join(codes))
+
+    __getitem__ = __getattr__
 
 
 class COLORS(metaclass=ColorMeta):
@@ -287,6 +290,28 @@ class COLORS(metaclass=ColorMeta):
         bash=D(o='\\[\x1b[', c='\\]'),
         interactive=D(o='', c=''),
     )
+
+    @staticmethod
+    def rgb(hex: str):
+        """Convert a hex string like #RGB or #RRGGBB (# optional) into a tuple of RGB values."""
+        if not (match := HEX_RE.match(hex)):
+            raise ValueError(f"{hex} is not a valid hex color")
+
+        hex = match.group(1)
+        if len(hex) == 3:
+            hex = ''.join(c*2 for c in hex)
+
+        return tuple(int(hex[i:i+2], 16) for i in range(0, 6, 2))
+
+    @staticmethod
+    def hexfg(hexstr: str):
+        r, g, b = COLORS.rgb(hexstr)
+        return esc(f"38;2;{r};{g};{b}")
+
+    @staticmethod
+    def hexbg(hexstr: str):
+        r, g, b = COLORS.rgb(hexstr)
+        return esc(f"48;2;{r};{g};{b}")
 
 
 class _AushModule(ModuleType):
@@ -314,3 +339,9 @@ sys.modules[__name__] = _AushModule(__name__)
 
 if __name__ == '__main__':
     logging.basicConfig()
+    from argparse import ArgumentParser
+    parser = ArgumentParser(description="aush: cli library/utils")
+    parser.add_argument('-c', '--color', help="Output an example of the provided color code")
+    args = parser.parse_args()
+    if args.color:
+        print(f"{args.color} = {COLORS.hexbg(args.color)}    {COLORS.c.reset}")
