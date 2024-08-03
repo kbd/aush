@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 READ_CHUNK_LENGTH = 2**10
 
-LOOP = asyncio.get_event_loop()
+LOOP = asyncio.get_event_loop()  # todo: fix for Python 3.12
 RESET = b'\x1b[0m'
 HEX_RE = re.compile(r"^\#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$")
 
