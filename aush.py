@@ -333,7 +333,9 @@ class _AushModule(ModuleType):
         return Command(name)
 
     def __getattr__(self, name):
-        return self[name.replace('_', '-')]
+        if not name.isupper():
+            name = name.replace('_', '-')
+        return self[name]
 
 sys.modules[__name__] = _AushModule(__name__)
 
