@@ -1,4 +1,5 @@
 import asyncio
+import fileinput
 import io
 import logging
 import os
@@ -17,7 +18,8 @@ READ_CHUNK_LENGTH = 2**10
 
 LOOP = asyncio.get_event_loop()  # todo: fix for Python 3.12
 RESET = b'\x1b[0m'
-HEX_RE = re.compile(r"^\#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$")
+HEX_RE = re.compile(r"^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$")
+INLINE_HEX_RE = re.compile(r"#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\b")
 
 
 def _nonstriterable(value):
@@ -344,6 +346,14 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser(description="aush: cli library/utils")
     parser.add_argument('-c', '--color', help="Output an example of the provided color code")
+    parser.add_argument(
+        '-s', '--substitute', nargs="*",
+        help="Substitute hex color codes in the provided text to show their color"
+    )
     args = parser.parse_args()
     if args.color:
         print(f"{args.color}: {COLORS.hexbg(args.color)}     {COLORS.c.reset}")
+    if args.substitute is not None:
+        sys.argv = sys.argv[1:]  # strip off -s
+        for line in fileinput.input(args.substitute or None):
+            print(INLINE_HEX_RE.sub(lambda m: f"{m.group(0)} [{COLORS.hexbg(m.group(1))}     {COLORS.c.reset}]", line), end="")
