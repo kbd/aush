@@ -344,4 +344,4 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--color', help="Output an example of the provided color code")
     args = parser.parse_args()
     if args.color:
-        print(f"{args.color} = {COLORS.hexbg(args.color)}    {COLORS.c.reset}")
+        print(f"{args.color}: {COLORS.hexbg(args.color)}     {COLORS.c.reset}")
