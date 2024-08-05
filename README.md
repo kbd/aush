@@ -93,7 +93,7 @@ poetry.init(
 poetry.install()
 ```
 
-I think that finally feels *better* than either shell or Python alone. Feel free to look at [`create-python`'s history](https://github.com/kbd/setup/commits/master/HOME/bin/create-python) where I convert it from shell to Python and try various libraries along the way.
+I think that finally feels *better* than either shell or Python alone. Feel free to look at [`create-python`'s history](https://github.com/kbd/setup/commits/main/HOME/bin/create-python) where I convert it from shell to Python and try various libraries along the way.
 
 # Usage
 
