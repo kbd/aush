@@ -152,6 +152,27 @@ Using the `Result` you can also redirect stdout to a file with `result > 'filena
 
 If the conventions don't do what you want, you can always fall back to passing exactly the strings you want, positionally, in the list way of creating commands.
 
+## Module usage
+
+`aush` has a few tricks when used as a module:
+
+```shell
+$ echo "red: #ff0000 green: #0f0 blue: #00F" | python -m aush -s
+```
+prints:
+
+> red: #ff0000 [<span style="background-color: #F00">&nbsp;&nbsp;&nbsp;&nbsp;</span>] green: #0f0 [<span style="background-color: #0F0">&nbsp;&nbsp;&nbsp;&nbsp;</span>] blue: #00F [<span style="background-color: #00F">&nbsp;&nbsp;&nbsp;&nbsp;</span>]
+
+Pipe a css file to aush to display its color values.
+
+If you want to see a specific color:
+
+```shell
+python -m aush -c 800080
+```
+
+> 800080: <span style="background-color: #800080">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+
 # aush Design Goals:
 
 ## `aush` should provide the *most convenient* way to write "shell scripts"
