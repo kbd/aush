@@ -150,7 +150,7 @@ class Result:
         self._process = self._loop.run_until_complete(_run(command))
         self._loop.run_until_complete(asyncio.gather(
             _read(self._stdout, self._process.stdout, echo),
-            _read(self._stderr, self._process.stderr, echo, color=COLORS.red),
+            _read(self._stderr, self._process.stderr, echo, color=COLORS.f.red),
         ))
 
         if self._command._check and self.code:
@@ -237,7 +237,7 @@ class Pipeline:
 
 
 def esc(i):
-    return f'\x1b[{i}m'  # \x1b == \e
+    return f'\x1b[{i}m'.encode()  # \x1b == \e
 
 
 class D(dict):
