@@ -16,7 +16,6 @@ log = logging.getLogger(__name__)
 
 READ_CHUNK_LENGTH = 2**10
 
-LOOP = asyncio.get_event_loop()  # todo: fix for Python 3.12
 RESET = b'\x1b[0m'
 HEX_RE = re.compile(r"^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$")
 INLINE_HEX_RE = re.compile(r"#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\b")
@@ -138,9 +137,9 @@ class Result:
         self._command = command
         self._stdout = io.BytesIO()
         self._stderr = io.BytesIO()
-
-        self._process = LOOP.run_until_complete(_run(command))
-        LOOP.run_until_complete(asyncio.gather(
+        self._loop = asyncio.get_running_loop()
+        self._process = self._loop.run_until_complete(_run(command))
+        self._loop.run_until_complete(asyncio.gather(
             _read(self._stdout, self._process.stdout, echo),
             _read(self._stderr, self._process.stderr, echo, color=COLORS.red),
         ))
@@ -155,7 +154,7 @@ class Result:
 
     def wait(self):
         if not self.finished:
-            LOOP.run_until_complete(self._process.wait())
+            self._loop.run_until_complete(self._process.wait())
 
     @property
     def code(self):
