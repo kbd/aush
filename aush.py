@@ -132,12 +132,21 @@ async def _run(command: Command):
     return await create_subprocess_exec(*cmd, **command._subprocess_kwargs)
 
 
+def get_or_create_loop():
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
+
+
 class Result:
     def __init__(self, command: Command, echo=True):
         self._command = command
         self._stdout = io.BytesIO()
         self._stderr = io.BytesIO()
-        self._loop = asyncio.get_running_loop()
+        self._loop = get_or_create_loop()
         self._process = self._loop.run_until_complete(_run(command))
         self._loop.run_until_complete(asyncio.gather(
             _read(self._stdout, self._process.stdout, echo),
