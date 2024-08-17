@@ -282,7 +282,7 @@ class ColorMeta(type):
 
             codes.append(code)
 
-        return Formatter(name, ''.join(codes))
+        return Formatter(name, ''.join(map(str, codes)))
 
     __getitem__ = __getattr__
 
