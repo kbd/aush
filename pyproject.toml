@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aush"
-version = "0.9.8b"
+version = "0.9.9"
 description = "Pythonic subprocess library"
 readme = "README.md"
 authors = ["Keith Devens"]
