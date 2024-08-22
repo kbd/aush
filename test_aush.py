@@ -1,4 +1,4 @@
-from aush import HEX_RE, echo
+from aush import COLORS, HEX_RE, echo
 
 
 def test_basic():
@@ -22,3 +22,8 @@ def test_hex_re():
     assert not HEX_RE.match("#FF")
     assert not HEX_RE.match("#ggg")
     assert not HEX_RE.match("fffffff")
+
+def test_colors():
+    assert f"{COLORS.red("hello")} world" == "\x1b[31mhello\x1b[0m world"
+    assert f"{COLORS.cyan_bg666("hello")} world" == '\x1b[36m\x1b[48;2;102;102;102mhello\x1b[0m world'
+    assert f"{COLORS["123456"]("hello")} world" == '\x1b[38;2;18;52;86mhello\x1b[0m world'

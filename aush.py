@@ -237,7 +237,7 @@ class Pipeline:
 
 
 def esc(i):
-    return f'\x1b[{i}m'.encode()  # \x1b == \e
+    return f'\x1b[{i}m'  # \x1b == \e
 
 
 class D(dict):
@@ -282,7 +282,7 @@ class ColorMeta(type):
 
             codes.append(code)
 
-        return Formatter(name, ''.join(map(str, codes)))
+        return Formatter(name, ''.join(codes))
 
     __getitem__ = __getattr__
 
