@@ -116,7 +116,7 @@ async def _read(buffer, stream, echo=True, color=None):
         buffer.write(chunk)
         if echo:
             if color:
-                for value in color, chunk, RESET:
+                for value in color.encode(), chunk, RESET:
                     sys.stderr.buffer.write(value)
             else:
                 sys.stderr.buffer.write(chunk)

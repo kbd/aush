@@ -27,3 +27,10 @@ def test_colors():
     assert f"{COLORS.red("hello")} world" == "\x1b[31mhello\x1b[0m world"
     assert f"{COLORS.cyan_bg666("hello")} world" == '\x1b[36m\x1b[48;2;102;102;102mhello\x1b[0m world'
     assert f"{COLORS["123456"]("hello")} world" == '\x1b[38;2;18;52;86mhello\x1b[0m world'
+
+def test_stderr_capture():
+    import logging
+
+    logging.getLogger().setLevel(logging.DEBUG)
+    from aush import argv
+    argv()
