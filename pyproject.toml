@@ -1,6 +1,6 @@
 [project]
 name = "aush"
-version = "0.9.12"
+version = "0.9.13"
 description = "Pythonic subprocess library"
 readme = "README.md"
 authors = [
