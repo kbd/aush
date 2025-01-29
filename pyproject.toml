@@ -6,7 +6,6 @@ readme = "README.md"
 authors = [
     { name = "Keith Devens", email = "keith@keithdevens.com" }
 ]
-license = { file = "LICENSE" }
 requires-python = ">=3.10"
 
 [project.urls]
