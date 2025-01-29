@@ -1,22 +1,20 @@
-[tool.poetry]
+[project]
 name = "aush"
-version = "0.9.11"
+version = "0.9.12"
 description = "Pythonic subprocess library"
 readme = "README.md"
-authors = ["Keith Devens"]
+authors = [
+    { name = "Keith Devens", email = "keith@keithdevens.com" }
+]
 repository = "https://github.com/kbd/aush"
 license = "MIT"
+requires-python = ">=3.8"
 
-[tool.poetry.dependencies]
-python = "^3.8"
-
-[tool.poetry.group.dev.dependencies]
-pudb = "^2024.1"
-ptpython = "^3.0.27"
-pytest = "^8.2.2"
-mypy = "^1.10.1"
-ruff = "^0.5"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "ipython>=8.31.0",
+    "mypy>=1.14.1",
+    "ptpython>=3.0.29",
+    "pudb>=2024.1.3",
+    "pytest>=8.3.4",
+]
