@@ -6,9 +6,11 @@ readme = "README.md"
 authors = [
     { name = "Keith Devens", email = "keith@keithdevens.com" }
 ]
-repository = "https://github.com/kbd/aush"
-license = "MIT"
-requires-python = ">=3.8"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+
+[project.urls]
+Repository = "https://github.com/kbd/aush"
 
 [dependency-groups]
 dev = [
