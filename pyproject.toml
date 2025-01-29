@@ -1,12 +1,17 @@
 [project]
 name = "aush"
-version = "0.9.13"
+version = "0.9.14"
 description = "Pythonic subprocess library"
 readme = "README.md"
 authors = [
     { name = "Keith Devens", email = "keith@keithdevens.com" }
 ]
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+
+# https://github.com/astral-sh/uv/issues/9513#issuecomment-2519527822
+[tool.setuptools]
+license-files = []
 
 [project.urls]
 Repository = "https://github.com/kbd/aush"
