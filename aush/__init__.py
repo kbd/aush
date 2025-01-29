@@ -340,6 +340,10 @@ class _AushModule(ModuleType):
             # doesn't change the working directory of this process
             return os.chdir
 
+        # special case pytest
+        if name.startswith("pytest"):
+            return []
+
         return Command(name)
 
     def __getattr__(self, name):
